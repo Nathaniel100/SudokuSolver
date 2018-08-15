@@ -46,7 +46,11 @@ class Sudoku {
   explicit Sudoku(const char *str) {
     int values[kNums] = {0};
     for (int i = 0; i < kNums; i++) {
-      values[i] = str[i] - '0';
+      if (str[i] >= '1' && str[i] <= '9') {
+        values[i] = str[i] - '0';
+      } else {
+        values[i] = 0;
+      }
     }
     Init(values);
   }
