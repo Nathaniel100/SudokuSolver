@@ -2,15 +2,15 @@
 // Created by 吴凡 on 2018/8/13.
 //
 
-#ifndef SODOKUSOLVER_SODOKU_H
-#define SODOKUSOLVER_SODOKU_H
+#ifndef SUDOKUSOLVER_SODOKU_H
+#define SUDOKUSOLVER_SODOKU_H
 
 #include <cstring>
 #include <cstdio>
 #include <sstream>
 #include <stack>
 
-namespace sodoku_solver {
+namespace sudoku {
 
 // if possible value is 6 (0110), the possible value is 1, 2
 enum PossibleValue {
@@ -33,7 +33,7 @@ enum SolveState {
   SOLVED = 1
 };
 
-class Sodoku {
+class Sudoku {
  public:
   constexpr static int kRows = 9;
   constexpr static int kCols = 9;
@@ -43,7 +43,7 @@ class Sodoku {
   constexpr static int kNums = kRows * kCols;
  public:
   // 530070000600195000098000060800060003400803001700020006060000280000319005000080079
-  explicit Sodoku(const char *str) {
+  explicit Sudoku(const char *str) {
     int values[kNums] = {0};
     for (int i = 0; i < kNums; i++) {
       values[i] = str[i] - '0';
@@ -51,7 +51,7 @@ class Sodoku {
     Init(values);
   }
 
-  explicit Sodoku(const int *values) {
+  explicit Sudoku(const int *values) {
     Init(values);
   }
 
@@ -455,4 +455,4 @@ class Sodoku {
 
 }
 
-#endif //SODOKUSOLVER_SODOKU_H
+#endif //SUDOKUSOLVER_SODOKU_H

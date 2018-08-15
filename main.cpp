@@ -1,6 +1,6 @@
 #include <iostream>
 #include <fstream>
-#include "sodoku.h"
+#include "sudoku.h"
 
 void SolvePuzzles(const std::string &in_file, const std::string &out_file) {
   std::ifstream in(in_file.c_str(), std::ios_base::in);
@@ -15,9 +15,9 @@ void SolvePuzzles(const std::string &in_file, const std::string &out_file) {
   }
   char buffer[82] = {0};
   while (in.getline(buffer, 82)) {
-    sodoku_solver::Sodoku sodoku(buffer);
-    sodoku.Solve();
-    std::string format_string = sodoku.FormatString();
+    sudoku::Sudoku sudoku(buffer);
+    sudoku.Solve();
+    std::string format_string = sudoku.FormatString();
     out.write(format_string.data(), format_string.size());
     out.write("\n\n", 2);
   }
@@ -26,7 +26,7 @@ void SolvePuzzles(const std::string &in_file, const std::string &out_file) {
 
 void SolveSimplePuzzle() {
 // easy
-//  sodoku_solver::Sodoku sodoku("530070000"
+//  sudoku::Sudoku sudoku("530070000"
 //                               "600195000"
 //                               "098000060"
 //                               "800060003"
@@ -37,7 +37,7 @@ void SolveSimplePuzzle() {
 //                               "000080079");
 
 // easy
-//  sodoku_solver::Sodoku sodoku("501943000"
+//  sudoku::Sudoku sudoku("501943000"
 //                               "200008600"
 //                               "090006500"
 //                               "300000472"
@@ -47,7 +47,7 @@ void SolveSimplePuzzle() {
 //                               "008200004"
 //                               "000489705");
 // medium
-//  sodoku_solver::Sodoku sodoku("006100002"
+//  sudoku::Sudoku sudoku("006100002"
 //                               "000035100"
 //                               "591000030"
 //                               "700003001"
@@ -57,7 +57,7 @@ void SolveSimplePuzzle() {
 //                               "408060700"
 //                               "063501000");
 // Very Very Difficult (From wiki)
-//  sodoku_solver::Sodoku sodoku("000000000"
+//  sudoku::Sudoku sudoku("000000000"
 //                               "000003085"
 //                               "001020000"
 //                               "000507000"
@@ -67,7 +67,7 @@ void SolveSimplePuzzle() {
 //                               "002010000"
 //                               "000040009");
 
-//  sodoku_solver::Sodoku sodoku("000000000"
+//  sudoku::Sudoku sudoku("000000000"
 //                               "700001602"
 //                               "006470100"
 //                               "500004300"
@@ -76,14 +76,14 @@ void SolveSimplePuzzle() {
 //                               "003082900"
 //                               "104600005"
 //                               "000000000");
-//  sodoku_solver::Sodoku sodoku("400000805030000000000700000020000060000080400000010000000603070500200000104000000");
-//  sodoku_solver::Sodoku sodoku("520006000000000701300000000000400800600000050000000000041800000000030020008700000");
-//  sodoku_solver::Sodoku sodoku("300080000000700005100000000000000360002004000070000000000060130045200000000000800");
-  sodoku_solver::Sodoku sodoku("000070020800000006010205000905400008000000000300008501000302080400000009070060000");
-  sodoku.PrintOrigin();
+//  sudoku::Sudoku sudoku("400000805030000000000700000020000060000080400000010000000603070500200000104000000");
+//  sudoku::Sudoku sudoku("520006000000000701300000000000400800600000050000000000041800000000030020008700000");
+//  sudoku::Sudoku sudoku("300080000000700005100000000000000360002004000070000000000060130045200000000000800");
+  sudoku::Sudoku sudoku("000070020800000006010205000905400008000000000300008501000302080400000009070060000");
+  sudoku.PrintOrigin();
   printf("=================\n");
-  sodoku.Solve();
-  sodoku.Print();
+  sudoku.Solve();
+  sudoku.Print();
 }
 
 int main() {
