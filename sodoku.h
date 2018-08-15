@@ -12,10 +12,7 @@
 
 namespace sodoku_solver {
 
-// value is 0, 1, 2, 3, 4, 5, 6, 7, 8
-
-// Binary presentation of a possible value is value
-// if possible value is 7 (0111), the possible value is 0, 1, 2
+// if possible value is 6 (0110), the possible value is 1, 2
 enum PossibleValue {
   kNo = 0,
   kOne = 1 << 1,
