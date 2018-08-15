@@ -7,6 +7,9 @@
 
 #include <cstring>
 #include <cstdio>
+#include <sstream>
+#include <stack>
+
 namespace sodoku_solver {
 
 // value is 0, 1, 2, 3, 4, 5, 6, 7, 8
@@ -27,6 +30,12 @@ enum PossibleValue {
   kMask = (1 << 10) - 2,
 };
 
+enum SolveState {
+  CONFLICTED = -1,
+  NO = 0,
+  SOLVED = 1
+};
+
 class Sodoku {
  public:
   constexpr static int kRows = 9;
@@ -44,9 +53,11 @@ class Sodoku {
     }
     Init(values);
   }
+
   explicit Sodoku(const int *values) {
     Init(values);
   }
+
   bool IsSolved() {
     for (int i = 0; i < kNums; i++) {
       if (values_[i] == 0) {
@@ -55,65 +66,161 @@ class Sodoku {
     }
     return true;
   }
-  void PrintOrigin() {
-    for (int i = 0; i < kRows; i++) {
-      for (int j = 0; j < kCols; j++) {
-        if (j != kCols - 1) {
-          printf("%d ", origin_values_matrix_[i][j]);
-        } else {
-          printf("%d", origin_values_matrix_[i][j]);
-        }
-      }
-      printf("\n");
-    }
 
+  std::string FormatOriginString() {
+    return Format(origin_values_matrix_);
   }
-  void Print() {
-    for (int i = 0; i < kRows; i++) {
-      for (int j = 0; j < kCols; j++) {
-        if (j != kCols - 1) {
-          printf("%d ", values_matrix_[i][j]);
-        } else {
-          printf("%d", values_matrix_[i][j]);
-        }
-      }
-      printf("\n");
-    }
 
-    for (int i = 0; i < kRows; i++) {
-      for (int j = 0; j < kCols; j++) {
-        printf("possible[%d][%d]: ", i, j);
-        for (int k = 1; k <= kRows; k++) {
-          if (HasBit(possible_values_matrix_[i][j], k)) {
-            printf("%d ", k);
-          }
-        }
-        printf("\n");
-      }
-    }
+  std::string FormatString() {
+    return Format(values_matrix_);
+  }
+
+  std::string FormatPossibleString() {
+    return Format(possible_values_matrix_);
+  }
+
+  void PrintOrigin() {
+    printf("%s", FormatOriginString().c_str());
+  }
+
+  void Print() {
+    printf("%s", FormatString().c_str());
+//    printf("#################\n");
+//    printf("%s", FormatPossibleString().c_str());
   }
 
   void Solve() {
-    for (int i = 0; i < kNums; i++) {// 假设每次都能解决一个空格
-      for (int k = 0; k < kNums; k++) {
-        int bit;
-        if (Ones(possible_values_[k], &bit) == 1) {
-          values_[k] = bit;
-        }
-      }
-      if (IsSolved()) {
-        break;
-      }
-      UpdatePossibleValues();
+    SolveState solve_state = SolveByPossible();
+    if (solve_state == SOLVED) { // 已解决
+      return;
+    } else if (solve_state == CONFLICTED) { // 出现冲突，说明数独题有问题
+      return;
     }
-    // 以上方法基本可以解决Easy的问题
+    // 以上基本可以解决简单的
 
     // 使用回溯法解决
+    SolveByBacktrack();
   }
 
-  void SolveByBackstrack() {
-  }
  private:
+  // 从最小可能possbile_value开始
+  void SolveByBacktrack() {
+    if (IsSolved()) {
+      return;
+    }
+    int backtrack_value = GetBacktrackStart();
+    while (true) {
+      SaveSnapshot(backtrack_value);
+      int index = SnapshotIndex(backtrack_value);
+      int guess = SnapshotGuessValue(backtrack_value);
+      values_[index] = guess;
+      SolveState state = SolveByPossible();
+      if (state == SOLVED) {
+        ClearSnapshot();
+        break;
+      } else if (state == CONFLICTED) {
+        do {
+          RestoreSnapshot(&backtrack_value);
+          backtrack_value = AnotherPossibleBacktrack(backtrack_value);
+        } while (backtrack_value == -1);
+      } else {
+        backtrack_value = GetBacktrackStart();
+      }
+    }
+  }
+
+  // 我们从可能的值中选一个可能值最少的
+  //       16  15  10  9        0
+  // XXXXXXXX  XXXXXX  XXXXXXXXXX
+  // index  guess  possible_value
+  int GetBacktrackStart() {
+    int min_ones_count = kRows;
+    int min_index = 0;
+    for (int i = 0; i < kNums; i++) {
+      if (possible_values_[i] == 0) {
+        continue;
+      }
+      int ones_count = Ones(possible_values_[i], nullptr);
+      if (min_ones_count > ones_count) {
+        min_ones_count = ones_count;
+        min_index = i;
+      }
+    }
+    int value = 0;
+    int first_one_bit = FirstOneBit(possible_values_[min_index]);
+    value |= ClearBit(possible_values_[min_index], first_one_bit);
+    value |= (first_one_bit << 10);
+    value |= (min_index << 16);
+    return value;
+  }
+
+  inline int AnotherPossibleBacktrack(int value) {
+    int possible_value = (value & kMask);
+    int guess = (value >> 10) & 0x1F;
+    int index = (value >> 16) & 0xFF;
+    value = 0;
+    int new_possible_value = ClearBit(possible_value, guess);
+    if (new_possible_value == 0) {
+      return -1;
+    }
+    int first_one_bit = FirstOneBit(new_possible_value);
+    value |= ClearBit(new_possible_value, first_one_bit);
+    value |= (first_one_bit << 10);
+    value |= (index << 16);
+    return value;
+  }
+
+  inline int SnapshotIndex(int value) {
+    return (value >> 16) & 0xFF;
+  }
+
+  inline int SnapshotGuessValue(int value) {
+    return (value >> 10) & 0x1F;
+  }
+
+  void SaveSnapshot(int backtrack_value) {
+    snapshot_stack_.push(Snapshot(values_, possible_values_, backtrack_value));
+  }
+
+  void ClearSnapshot() {
+    while (!snapshot_stack_.empty()) {
+      snapshot_stack_.pop();
+    }
+  }
+
+  void RestoreSnapshot(int *backtrack_value) {
+    snapshot_stack_.top().Restore(values_, possible_values_, backtrack_value);
+    snapshot_stack_.pop();
+  }
+
+  // 以下方法基本可以解决Easy的问题
+  SolveState SolveByPossible() {
+    int iteration = GetIteration();
+    for (int i = 0; i < iteration; i++) {
+      if (!UpdateValues()) { // 出现冲突
+        return CONFLICTED;
+      }
+      if (!UpdatePossibleValues()) { // 出现冲突
+        return CONFLICTED;
+      }
+    }
+    return IsSolved() ? SOLVED : NO;
+  }
+
+  static std::string Format(int (*v)[kCols]) {
+    std::ostringstream oss;
+    for (int i = 0; i < kRows; i++) {
+      for (int j = 0; j < kCols; j++) {
+        oss << v[i][j];
+        if (j != kCols - 1) {
+          oss << ' ';
+        }
+      }
+      oss << '\n';
+    }
+    return oss.str();
+  }
+
   void Init(const int *values) {
     origin_values_ = reinterpret_cast<int *>(origin_values_matrix_);
     values_ = reinterpret_cast<int *>(values_matrix_);
@@ -122,12 +229,80 @@ class Sodoku {
     memcpy(values_, values, sizeof(int) * kNums);
     UpdatePossibleValues();
   }
-  void UpdatePossibleValues() {
-    for (int i = 0; i < kRows; i++) {
-      for (int j = 0; j < kCols; j++) {
-        possible_values_matrix_[i][j] = CalculatePossibleValue(i, j);
+
+  int GetIteration() {
+    int iteration = 0;
+    for (int i = 0; i < kNums; i++) {
+      if (values_[i] != 0) {
+        iteration++;
       }
     }
+    return iteration;
+  }
+
+  bool UpdateValues() {
+    for (int i = 0; i < kRows; i++) {
+      for (int j = 0; j < kCols; j++) {
+        int bit;
+        if (Ones(possible_values_matrix_[i][j], &bit) == 1) {
+          if (!CheckRowValue(i, bit)) {
+            return false;
+          }
+          if (!CheckColValue(j, bit)) {
+            return false;
+          }
+          int block_row_col = BlockRowCol(i, j);
+          int block = Block(block_row_col);
+          if (!CheckBlockValue(block, bit)) {
+            return false;
+          }
+          values_matrix_[i][j] = bit;
+        }
+      }
+    }
+    return true;
+  }
+
+  bool CheckRowValue(int row, int value) {
+    for (int j = 0; j < kCols; j++) {
+      if (values_matrix_[row][j] == value) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  bool CheckColValue(int col, int value) {
+    for (int i = 0; i < kRows; i++) {
+      if (values_matrix_[i][col] == value) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  bool CheckBlockValue(int block, int value) {
+    for (int i = 0; i < 3; i++) {
+      for (int j = 0; j < 3; j++) {
+        if (value == Value(block, i, j)) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  bool UpdatePossibleValues() {
+    for (int i = 0; i < kRows; i++) {
+      for (int j = 0; j < kCols; j++) {
+        int possible_value = CalculatePossibleValue(i, j);
+        if (possible_value == -1) {
+          return false;
+        }
+        possible_values_matrix_[i][j] = possible_value;
+      }
+    }
+    return true;
   }
 
   // 3, 3 -> block 3, row 0, col 0
@@ -158,7 +333,6 @@ class Sodoku {
     return (block % kBlockCols) * kBlockCols + block_col;
   }
 
-
   inline int Value(int block, int block_row, int block_col) {
     int row = BlockToRow(block, block_row);
     int col = BlockToCol(block, block_col);
@@ -175,30 +349,46 @@ class Sodoku {
     if (values_matrix_[row][col] != 0) {
       return 0;
     }
-
-    int possible_value = kMask;
-    for (int j = 0; j < kCols; j++) {
-      if (values_matrix_[row][j] != 0) {
-        possible_value = ClearBit(possible_value, values_matrix_[row][j]);
-      }
-    }
-    for (int i = 0; i < kRows; i++) {
-      if (values_matrix_[i][col] != 0) {
-        possible_value = ClearBit(possible_value, values_matrix_[i][col]);
-      }
-    }
     int block_row_col = BlockRowCol(row, col);
     int block = Block(block_row_col);
+
+    int possible_value = kMask;
+    CalculateRowPossibleValue(row, &possible_value);
+    CalculateColPossibleValue(col, &possible_value);
+    CalculateBlockPossibleValue(block, &possible_value);
+
+    if (possible_value == 0) { // Conflict
+      return -1;
+    }
+
+    return possible_value;
+  }
+
+  void CalculateRowPossibleValue(int row, int *possible_value) {
+    for (int j = 0; j < kCols; j++) {
+      if (values_matrix_[row][j] != 0) {
+        *possible_value = ClearBit(*possible_value, values_matrix_[row][j]);
+      }
+    }
+  }
+
+  void CalculateColPossibleValue(int col, int *possible_value) {
+    for (int i = 0; i < kRows; i++) {
+      if (values_matrix_[i][col] != 0) {
+        *possible_value = ClearBit(*possible_value, values_matrix_[i][col]);
+      }
+    }
+  }
+
+  void CalculateBlockPossibleValue(int block, int *possible_value) {
     for (int i = 0; i < 3; i++) {
       for (int j = 0; j < 3; j++) {
         int value = Value(block, i, j);
         if (value != 0) {
-          possible_value = ClearBit(possible_value, value);
+          *possible_value = ClearBit(*possible_value, value);
         }
       }
     }
-
-    return possible_value;
   }
 
   inline int ClearBit(int value, int bit) {
@@ -227,6 +417,35 @@ class Sodoku {
     return count;
   }
 
+  inline int FirstOneBit(int value) {
+    int bit = kRows;
+    do {
+      if (HasBit(value, bit)) {
+        break;
+      }
+    } while (--bit != 0);
+    return bit;
+  }
+
+ private:
+  class Snapshot {
+   private:
+    int snap_values_[kRows * kCols];
+    int snap_possible_values_[kRows * kCols];
+    int snap_backtrack_value_;
+   public:
+    Snapshot(int *values, int *possible_values, int backtrack_value) {
+      memcpy(snap_values_, values, sizeof(snap_values_));
+      memcpy(snap_possible_values_, possible_values, sizeof(snap_possible_values_));
+      snap_backtrack_value_ = backtrack_value;
+    }
+
+    void Restore(int *values, int *possible_values, int *backtrack_value) {
+      memcpy(values, snap_values_, sizeof(snap_values_));
+      memcpy(possible_values, snap_possible_values_, sizeof(snap_possible_values_));
+      *backtrack_value = snap_backtrack_value_;
+    }
+  };
  private:
   int *origin_values_;
   int *values_;
@@ -234,6 +453,7 @@ class Sodoku {
   int origin_values_matrix_[kRows][kCols];
   int values_matrix_[kRows][kCols];
   int possible_values_matrix_[kRows][kCols];
+  std::stack<Snapshot> snapshot_stack_;
 };
 
 }

@@ -1,6 +1,7 @@
 #include <iostream>
 #include "sodoku.h"
 int main() {
+// easy
 //  sodoku_solver::Sodoku sodoku("530070000"
 //                               "600195000"
 //                               "098000060"
@@ -11,6 +12,7 @@ int main() {
 //                               "000419005"
 //                               "000080079");
 
+// easy
 //  sodoku_solver::Sodoku sodoku("501943000"
 //                               "200008600"
 //                               "090006500"
@@ -20,6 +22,7 @@ int main() {
 //                               "002100060"
 //                               "008200004"
 //                               "000489705");
+// medium
   sodoku_solver::Sodoku sodoku("006100002"
                                "000035100"
                                "591000030"
@@ -29,6 +32,16 @@ int main() {
                                "000020690"
                                "408060700"
                                "063501000");
+// Difficult
+//  sodoku_solver::Sodoku sodoku("000000000"
+//                               "000003085"
+//                               "001020000"
+//                               "000507000"
+//                               "004000100"
+//                               "090000000"
+//                               "500000073"
+//                               "002010000"
+//                               "000040009");
   sodoku.PrintOrigin();
   printf("=================\n");
   sodoku.Solve();
