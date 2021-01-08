@@ -1,97 +1,116 @@
-#include <iostream>
-#include <fstream>
-#include "sudoku.h"
+// ACCEPTED
 
-void SolvePuzzles(const std::string &in_file, const std::string &out_file) {
-  std::ifstream in(in_file.c_str(), std::ios_base::in);
-  if (!in.good()) {
-    fprintf(stderr, "In file path is invalid: %s\n", in_file.c_str());
-    return;
-  }
-  std::ofstream out(out_file.c_str(), std::ios_base::out);
-  if (!out.good()) {
-    fprintf(stderr, "Out file path is invalid: %s\n", out_file.c_str());
-    return;
-  }
-  char buffer[82] = {0};
-  while (in.getline(buffer, 82)) {
-    sudoku::Sudoku sudoku(buffer);
-    sudoku.Solve();
-    std::string format_string = sudoku.FormatString();
-    out.write(format_string.data(), format_string.size());
-    out.write("\n\n", 2);
-  }
-  out.flush();
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+
+#include <algorithm>
+#include <queue>
+#include <vector>
+
+using namespace std;
+
+using vi = vector<int>;
+using vvi = vector<vi>;
+
+#define MAX_N 3
+
+constexpr int MASK(int x) { return ((1 << x) - 1); }
+constexpr bool HAS_BIT(int M, int x) { return M & (1 << x); }
+inline void SET_BIT(int &M, int x) { M |= (1 << x); }
+inline void RESET_BIT(int &M, int x) { M &= ~(1 << x); }
+constexpr int GRID(int i, int j, int n) {
+  return ((i - 1) / n) * n + ((j - 1) / n) + 1;
 }
 
-void SolveSimplePuzzle() {
-// easy
-//  sudoku::Sudoku sudoku("530070000"
-//                               "600195000"
-//                               "098000060"
-//                               "800060003"
-//                               "400803001"
-//                               "700020006"
-//                               "060000280"
-//                               "000419005"
-//                               "000080079");
+// 以下索引均从1作为起始
 
-// easy
-//  sudoku::Sudoku sudoku("501943000"
-//                               "200008600"
-//                               "090006500"
-//                               "300000472"
-//                               "620804039"
-//                               "419000006"
-//                               "002100060"
-//                               "008200004"
-//                               "000489705");
-// medium
-//  sudoku::Sudoku sudoku("006100002"
-//                               "000035100"
-//                               "591000030"
-//                               "700003001"
-//                               "080706000"
-//                               "010000074"
-//                               "000020690"
-//                               "408060700"
-//                               "063501000");
-// Very Very Difficult (From wiki)
-//  sudoku::Sudoku sudoku("000000000"
-//                               "000003085"
-//                               "001020000"
-//                               "000507000"
-//                               "004000100"
-//                               "090000000"
-//                               "500000073"
-//                               "002010000"
-//                               "000040009");
+const int n = 3;
+vvi mat;
+vi rows;
+vi cols;
+vi grids;
 
-//  sudoku::Sudoku sudoku("000000000"
-//                               "700001602"
-//                               "006470100"
-//                               "500004300"
-//                               "300807006"
-//                               "002300009"
-//                               "003082900"
-//                               "104600005"
-//                               "000000000");
-//  sudoku::Sudoku sudoku("400000805030000000000700000020000060000080400000010000000603070500200000104000000");
-//  sudoku::Sudoku sudoku("520006000000000701300000000000400800600000050000000000041800000000030020008700000");
-//  sudoku::Sudoku sudoku("300080000000700005100000000000000360002004000070000000000060130045200000000000800");
-  sudoku::Sudoku sudoku("000070020800000006010205000905400008000000000300008501000302080400000009070060000");
-  sudoku.PrintOrigin();
-  printf("=================\n");
-  sudoku.Solve();
-  sudoku.Print();
+bool Next(int r, int c, int k, int *next_r, int *next_c, int *next_k) {
+  for (int i = 1; i <= n * n; i++) {
+    for (int j = 1; j <= n * n; j++) {
+      if (i == r && j == c) continue;
+      if (mat[i][j] == 0) {
+        *next_r = i;
+        *next_c = j;
+        *next_k = GRID(i, j, n);
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+bool Backtrack(int r, int c, int k) {
+  int next_r, next_c, next_k;
+  for (int i = 1; i <= n * n; i++) {
+    if (!HAS_BIT(rows[r], i) && !HAS_BIT(cols[c], i) && !HAS_BIT(grids[k], i)) {
+      SET_BIT(rows[r], i);
+      SET_BIT(cols[c], i);
+      SET_BIT(grids[k], i);
+      mat[r][c] = i;
+      if (!Next(r, c, k, &next_r, &next_c, &next_k)) return true;
+      // printf("# %d %d %d, %d %d %d: %d\n", r, c, k, next_r, next_c, next_k, i);
+      if (Backtrack(next_r, next_c, next_k)) {
+        return true;
+      }
+      RESET_BIT(rows[r], i);
+      RESET_BIT(cols[c], i);
+      RESET_BIT(grids[k], i);
+      mat[r][c] = 0;
+    }
+  }
+  return false;
 }
 
 int main() {
-  SolveSimplePuzzle();
-  SolvePuzzles("../hardest-11.txt", "../hardest-11-solution.txt");
-  // difficult-95 is slow, it will cost about 3 minutes.
-//  SolvePuzzles("../difficult-95.txt", "../difficult-95-solution.txt");
-  return 0;
+  char line[100] = {0}; // 每行81个字符
+  int no = 1;
+  while (fgets(line, sizeof(line), stdin)) {
+    int line_len = strlen(line);
+    if (line_len == 0) continue;
+    while (isspace(line[line_len - 1])) line_len--;
+    line[line_len] = 0;
+
+    int square = n * n;
+    mat.assign(square + 2, vi(square + 2, 0));
+    rows.assign(square + 2, 1);
+    cols.assign(square + 2, 1);
+    grids.assign(square + 2, 1);
+    int r = 0, c = 0, k = 0;
+    for (int i = 1; i <= square; i++) {
+      for (int j = 1; j <= square; j++) {
+        int val = line[(i - 1) * square + j - 1] - '0';
+        mat[i][j] = val;
+        int g = GRID(i, j, n);
+        SET_BIT(rows[i], val);
+        SET_BIT(cols[j], val);
+        SET_BIT(grids[g], val);
+        if (val == 0 && r == 0) {
+          r = i, c = j, k = g;
+        }
+      }
+    }
+    if (no > 1) printf("\n");
+    if (Backtrack(r, c, k) || r == 0) {
+      for (int i = 1; i <= square; i++) {
+        for (int j = 1; j <= square; j++) {
+          if (j == square) {
+            printf("%d\n", mat[i][j]);
+          } else {
+            printf("%d ", mat[i][j]);
+          }
+        }
+      }
+    } else {
+      printf("NO SOLUTION\n");
+    }
+    no++;
+  }
 }
-
-
