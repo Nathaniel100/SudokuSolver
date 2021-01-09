@@ -19,6 +19,8 @@ vvi mat; // 数独数值，0表示未填数值, 1-9表示已填充数值, 大小
 
 ## 算法实现
 
+### 回溯遍历
+
 利用回溯法进行遍历, 由于效率问题，该方法遇到部分数组可能会较慢。还需要额外优化。
 
 ```c++
@@ -46,7 +48,6 @@ bool Backtrack(int r, int c, int k) {
 }
 
 // 找到下一个待填充的单元格(值为0)
-// TODO 待优化
 bool Next(int r, int c, int k, int *next_r, int *next_c, int *next_k) {
   for (int i = 1; i <= n * n; i++) {
     for (int j = 1; j <= n * n; j++) {
@@ -57,6 +58,74 @@ bool Next(int r, int c, int k, int *next_r, int *next_c, int *next_k) {
         *next_k = GRID(i, j, n);
         return true;
       }
+    }
+  }
+  return false;
+}
+```
+
+### 优化实现
+
+```c++
+// 返回1表示找到下一个单元格，0表示全部单元格已填完，-1表示某个单元格存在冲突
+int Next(int r, int c, int *next_r, int *next_c, int *next_k) {
+  int r2 = 0, c2 = 0, k2 = 0;
+  int min_ones = square + 2;
+
+  for (int i = 1; i <= square; i++) {
+    for (int j = 1; j <= square; j++) {
+      if (i == r && j == c) continue;
+      if (mat[i][j] != 0) continue;
+      int g = GRID(i, j, n);
+      int bitmask = sudoku_mask & ~(rows[i] | cols[j] | grids[g] | 1);
+      if (bitmask == 0) return -1; // 冲突了
+      int ones = BIT_ONE_COUNT(bitmask);
+      if (ones == 1) {
+        *next_r = i;
+        *next_c = j;
+        *next_k = g;
+        return 1;
+      }
+      if (ones < min_ones) {
+        min_ones = ones;
+        r2 = i;
+        c2 = j;
+        k2 = g;
+      }
+    }
+  }
+  if (r2 == 0) return 0;
+  *next_r = r2;
+  *next_c = c2;
+  *next_k = k2;
+  return 1;
+}
+
+bool Backtrack(int r, int c, int k) {
+  int next_r, next_c, next_k;
+  for (int i = 1; i <= square; i++) {
+    if (!HAS_BIT(rows[r], i) && !HAS_BIT(cols[c], i) && !HAS_BIT(grids[k], i)) {
+      SET_BIT(rows[r], i);
+      SET_BIT(cols[c], i);
+      SET_BIT(grids[k], i);
+      mat[r][c] = i;
+      int status = Next(r, c, &next_r, &next_c, &next_k);
+      if (status == 0) { 
+        return true;
+      } else if (status == -1) {
+        RESET_BIT(rows[r], i);
+        RESET_BIT(cols[c], i);
+        RESET_BIT(grids[k], i);
+        mat[r][c] = 0;
+        continue;
+      }
+      if (Backtrack(next_r, next_c, next_k)) {
+        return true;
+      }
+      RESET_BIT(rows[r], i);
+      RESET_BIT(cols[c], i);
+      RESET_BIT(grids[k], i);
+      mat[r][c] = 0;
     }
   }
   return false;
